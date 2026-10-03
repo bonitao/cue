@@ -281,15 +281,12 @@ func (n *nodeContext) processAncestors(mode runMode) (done bool) {
 	switch {
 	case p != nil:
 		n := p.state
-		// p.state is nil when the parent vertex exists but has not yet
-		// entered evaluation (no nodeContext has been created for it).
-		// Known trigger path: unifyNode passes arcTypeKnown|fieldSetKnown
-		// to process, so handleParents no longer returns early once
-		// arcTypeKnown is met, reaching processAncestors for nodes whose
-		// parents were never unified. (Reproducer:
-		// TestScript/cmd_typocheck.) Without this guard the nil receiver
-		// panics at n.meets(...).
-		if n == nil {
+		// A parent whose state is nil (not yet in evaluation) or not
+		// initialized (reclaimed by a nested evaluation, as builtins that
+		// finalize their argument run, then recreated bare) has no scheduled
+		// conjuncts to process. handleParents reaches here for such parents
+		// because unifyNode asks for fieldSetKnown as well as arcTypeKnown.
+		if n == nil || !n.isInitialized {
 			break
 		}
 

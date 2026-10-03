@@ -1,0 +1,27 @@
+# list.Concat finalizes its argument in a nested evaluation that reclaims the
+# nodeContext of #S's instance while the outer evaluation still resolves it;
+# the outer evaluation recreates that state bare. Resolving out must skip the
+# bare ancestor instead of panicking with "vertex not initialized".
+-- in.cue --
+import "list"
+
+#S: {
+	e: _
+	out: [for ix in e.x {e.t + ix.y}]
+}
+l: list.Concat([if true {(#S & {e: {t: "P", x: [{y: "a"}]}}).out}]) @test(eq, ["Pa"])
+-- out/errors.txt --
+[incomplete] #S.out: e.x undefined as e is incomplete (type _):
+    ./in.cue:5:18
+-- out/eval/stats --
+Leaks:  7
+Freed:  16
+Reused: 10
+Allocs: 13
+Retain: 0
+
+Unifications: 21
+Conjuncts:    33
+Disjuncts:    0
+
+NumCloseIDs: 5
